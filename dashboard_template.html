@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rover Raw Images</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #eceff2;
+    --panel: #ffffff;
+    --ink: #1c2026;
+    --ink-2: #4c5560;
+    --muted: #7a838e;
+    --line: #d6dbe1;
+    --grid: #e7eaee;
+    --accent: #b0472a;
+    --accent-soft: #f3e0d8;
+    --good: #2d7a4e;
+    --warn: #9a6400;
+    --crit: #b3261e;
+    --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #121418; --panel: #1a1e23; --ink: #e7e9ec; --ink-2: #adb4bd; --muted: #7e8791;
+      --line: #2b3139; --grid: #232830; --accent: #e27a51; --accent-soft: #3b2419;
+      --good: #5cbf85; --warn: #e0a642; --crit: #f07167;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121418; --panel: #1a1e23; --ink: #e7e9ec; --ink-2: #adb4bd; --muted: #7e8791;
+    --line: #2b3139; --grid: #232830; --accent: #e27a51; --accent-soft: #3b2419;
+    --good: #5cbf85; --warn: #e0a642; --crit: #f07167;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 var(--body);
+    padding: 0 16px;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding-block: 24px 48px; display: grid; gap: 20px; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Header */
+  header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .eyebrow { font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font: 600 clamp(30px, 5vw, 44px)/1 var(--display); letter-spacing: .01em; margin: 6px 0 0; text-wrap: balance; }
+  h1 .sol { color: var(--accent); }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 3px; }
+  .seg button { border: 0; background: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 500; color: var(--ink-2); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+  .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 7px 14px; cursor: pointer; font-weight: 500; }
+  .btn:hover { border-color: var(--ink-2); }
+  .btn:disabled { opacity: .55; cursor: progress; }
+
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--ink-2); font-size: 13px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+          padding: 5px 9px; border-radius: 999px; border: 1px solid currentColor; }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.live { color: var(--good); }
+  .pill.snapshot { color: var(--warn); }
+  .pill.error { color: var(--crit); }
+  .pill.loading { color: var(--muted); }
+  .pill.loading::before { animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .2; } }
+  label.auto { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+
+  .notice { border: 1px solid var(--line); border-left: 3px solid var(--warn); background: var(--panel); border-radius: 8px; padding: 12px 14px; color: var(--ink-2); }
+  .notice.error { border-left-color: var(--crit); }
+  .notice code { font-family: var(--mono); font-size: 12.5px; }
+
+  /* KPI row */
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; }
+  .kpi .v { font: 600 30px/1.05 var(--display); font-variant-numeric: tabular-nums; }
+  .kpi .s { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  /* Charts */
+  .charts { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+  .panel h2 { font: 600 20px/1.1 var(--display); letter-spacing: .02em; margin: 0; }
+  .panel .hint { color: var(--muted); font-size: 12px; margin: 0; }
+  .chart { position: relative; overflow-x: auto; }
+  .chart svg { display: block; width: 100%; height: auto; }
+  #c-sol svg { min-width: 460px; }
+  .chart .bar { fill: var(--accent); cursor: pointer; }
+  .chart .bar.dim { opacity: .3; }
+  .chart .hit { fill: transparent; cursor: pointer; }
+  .chart .axis { fill: var(--muted); font: 11px var(--mono); }
+  .chart .lbl { fill: var(--ink-2); font: 12px var(--body); }
+  .chart .val { fill: var(--ink); font: 500 12px var(--mono); }
+  .chart .gridline { stroke: var(--grid); stroke-width: 1; }
+  .chart .base { stroke: var(--line); stroke-width: 1; }
+  .tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font: 12px/1.35 var(--body);
+         padding: 6px 9px; border-radius: 6px; z-index: 20; white-space: nowrap; }
+  .tip b { font-family: var(--mono); font-weight: 500; }
+
+  /* Filters + grid */
+  .gallery-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 4px 11px; cursor: pointer;
+          font: 12px var(--body); color: var(--ink-2); display: inline-flex; gap: 6px; align-items: baseline; }
+  .chip .n { font-family: var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+  .card { border: 0; padding: 0; background: var(--panel); border-radius: 8px; overflow: hidden; cursor: pointer; text-align: left;
+          display: grid; grid-template-rows: auto 1fr; outline-offset: 2px; border: 1px solid var(--line); }
+  .card .ph { aspect-ratio: 1 / 1; background: var(--grid); max-width: 100%; }
+  .card img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s ease; }
+  .card:hover img { transform: scale(1.04); }
+  .card .meta { padding: 7px 9px; display: grid; gap: 1px; }
+  .card .cam { font: 500 12px var(--body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .when { font: 11px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .more { justify-self: center; }
+  .empty { color: var(--muted); padding: 24px 0; text-align: center; }
+
+  /* Lightbox */
+  dialog { border: 0; padding: 0; border-radius: 12px; background: var(--panel); color: var(--ink); width: min(1000px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
+  dialog::backdrop { background: rgb(8 10 12 / .72); }
+  .lb { display: grid; grid-template-columns: minmax(0, 1fr) 260px; }
+  .lb img { width: 100%; height: 100%; max-height: calc(100vh - 32px); object-fit: contain; background: #000; display: block; }
+  .lb aside { padding: 18px; display: grid; align-content: start; gap: 12px; }
+  .lb dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; }
+  .lb dt { color: var(--muted); }
+  .lb dd { margin: 0; font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+  .lb a { color: var(--accent); }
+  .lb .close { justify-self: end; }
+
+  footer { color: var(--muted); font-size: 12px; }
+  footer a { color: inherit; }
+
+  @media (max-width: 860px) {
+    .charts { grid-template-columns: 1fr; }
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lb { grid-template-columns: 1fr; }
+    .lb img { max-height: 60vh; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card img { transition: none; }
+    .pill.loading::before { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow" id="mission-line">NASA raw image feed</div>
+      <h1><span id="rover-name">Perseverance</span> · <span class="sol" id="h-sol">Sol —</span></h1>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Rover">
+        <button type="button" id="r-perseverance" data-rover="perseverance" aria-pressed="true">Perseverance</button>
+        <button type="button" id="r-curiosity" data-rover="curiosity" aria-pressed="false">Curiosity</button>
+      </div>
+      <button type="button" class="btn" id="refresh">Refresh now</button>
+    </div>
+  </header>
+
+  <div class="status">
+    <span class="pill loading" id="pill">Loading</span>
+    <span id="status-text">Contacting NASA…</span>
+    <label class="auto"><input type="checkbox" id="auto" checked> Auto-refresh every 10 min</label>
+  </div>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="kpis" aria-label="Summary">
+    <div class="kpi"><span class="eyebrow">Latest sol</span><span class="v" id="k-sol">—</span><span class="s" id="k-sol-s">&nbsp;</span></div>
+    <div class="kpi"><span class="eyebrow">Photos loaded</span><span class="v" id="k-photos">—</span><span class="s" id="k-photos-s">&nbsp;</span></div>
+    <div class="kpi"><span class="eyebrow">Cameras active</span><span class="v" id="k-cams">—</span><span class="s" id="k-cams-s">&nbsp;</span></div>
+    <div class="kpi"><span class="eyebrow">Latest capture (UTC)</span><span class="v" id="k-time">—</span><span class="s" id="k-time-s">&nbsp;</span></div>
+  </section>
+
+  <section class="charts">
+    <div class="panel">
+      <h2>Photos per sol</h2>
+      <p class="hint">Select a sol to filter the gallery. Select it again to clear.</p>
+      <div class="chart" id="c-sol"></div>
+    </div>
+    <div class="panel">
+      <h2>Photos by camera</h2>
+      <p class="hint">Select a camera to filter the gallery.</p>
+      <div class="chart" id="c-cam"></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Gallery">
+    <div class="gallery-head">
+      <h2 id="g-title">Latest frames</h2>
+      <span class="hint" id="g-count"></span>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="grid" id="grid"></div>
+    <button type="button" class="btn more" id="more" hidden>Show more</button>
+  </section>
+
+  <footer>
+    Images: NASA/JPL-Caltech (Perseverance also ASU/MSSS where credited). Raw, unprocessed frames as downlinked.
+    Source feeds: <a href="https://mars.nasa.gov/mars2020/multimedia/raw-images/" target="_blank" rel="noopener">Mars 2020 raw images</a>,
+    <a href="https://mars.nasa.gov/msl/multimedia/raw-images/" target="_blank" rel="noopener">MSL raw images</a>.
+  </footer>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<dialog id="lightbox" aria-label="Photo detail">
+  <div class="lb">
+    <img id="lb-img" alt="">
+    <aside>
+      <button type="button" class="btn close" id="lb-close">Close</button>
+      <dl id="lb-meta"></dl>
+      <a id="lb-full" target="_blank" rel="noopener">Open full resolution</a>
+      <a id="lb-link" target="_blank" rel="noopener">View on NASA</a>
+    </aside>
+  </div>
+</dialog>
+
+<script>
+// The notebook replaces the next line with a data snapshot. Left as null, the page runs live-only.
+const SNAPSHOT = /*__SNAPSHOT__*/null;
+
+const PAGE_SIZE = 100;   // photos per API request
+const PAGES = 3;         // requests per refresh
+const GRID_STEP = 60;    // gallery cards per "Show more"
+const AUTO_MS = 10 * 60 * 1000;
+
+const ROVERS = {
+  perseverance: { name: "Perseverance", mission: "Mars 2020", landed: "2021-02-18", site: "Jezero Crater" },
+  curiosity:    { name: "Curiosity",    mission: "Mars Science Laboratory", landed: "2012-08-06", site: "Gale Crater" },
+};
+
+// Friendly names for instrument codes. Unknown codes fall back to a tidied code.
+const CAMERA_NAMES = {
+  NAVCAM_LEFT: "Navcam left", NAVCAM_RIGHT: "Navcam right",
+  FRONT_HAZCAM_LEFT_A: "Front Hazcam left", FRONT_HAZCAM_RIGHT_A: "Front Hazcam right",
+  FRONT_HAZCAM_LEFT_B: "Front Hazcam left B", FRONT_HAZCAM_RIGHT_B: "Front Hazcam right B",
+  REAR_HAZCAM_LEFT: "Rear Hazcam left", REAR_HAZCAM_RIGHT: "Rear Hazcam right",
+  MCZ_LEFT: "Mastcam-Z left", MCZ_RIGHT: "Mastcam-Z right",
+  SKYCAM: "MEDA SkyCam", SHERLOC_WATSON: "SHERLOC WATSON", SUPERCAM_RMI: "SuperCam RMI",
+  CACHECAM: "CacheCam", PIXL_MCC: "PIXL MCC", LCAM: "Lander Vision (LCAM)",
+  EDL_RUCAM: "Rover up-look", EDL_RDCAM: "Rover down-look", EDL_DDCAM: "Descent down-look",
+  EDL_PUCAM1: "Parachute up-look A", EDL_PUCAM2: "Parachute up-look B",
+  NAV_LEFT_A: "Navcam left A", NAV_RIGHT_A: "Navcam right A", NAV_LEFT_B: "Navcam left B", NAV_RIGHT_B: "Navcam right B",
+  FHAZ_LEFT_A: "Front Hazcam left A", FHAZ_RIGHT_A: "Front Hazcam right A", FHAZ_LEFT_B: "Front Hazcam left B", FHAZ_RIGHT_B: "Front Hazcam right B",
+  RHAZ_LEFT_A: "Rear Hazcam left A", RHAZ_RIGHT_A: "Rear Hazcam right A", RHAZ_LEFT_B: "Rear Hazcam left B", RHAZ_RIGHT_B: "Rear Hazcam right B",
+  MAST_LEFT: "Mastcam left", MAST_RIGHT: "Mastcam right", MAHLI: "MAHLI", MARDI: "MARDI", CHEMCAM_RMI: "ChemCam RMI",
+};
+const cameraName = code => CAMERA_NAMES[code] || String(code || "Unknown").replace(/_/g, " ").toLowerCase().replace(/^\w/, c => c.toUpperCase());
+
+// ---- Live sources -------------------------------------------------------
+function perseveranceUrl(page) {
+  return "https://mars.nasa.gov/rss/api/?feed=raw_images&category=mars2020&feedtype=json" +
+    `&num=${PAGE_SIZE}&page=${page}&order=sol+desc&extended=sample_type::full,`;
+}
+function curiosityUrl(page) {
+  return "https://mars.nasa.gov/api/v1/raw_image_items/?order=sol%20desc,date_taken%20desc" +
+    `&per_page=${PAGE_SIZE}&page=${page}&condition_1=msl:mission&extended=thumbnail::sample_type::noteq`;
+}
+function normPerseverance(i) {
+  const f = i.image_files || {};
+  const code = (i.camera && i.camera.instrument) || "UNKNOWN";
+  return {
+    id: i.imageid, sol: Number(i.sol), utc: i.date_taken_utc, camera: code, camera_name: cameraName(code),
+    thumb: f.small || f.medium || f.large || f.full_res, img: f.large || f.medium || f.full_res,
+    full: f.full_res || f.large, link: i.link || "", caption: i.title || "",
+  };
+}
+function normCuriosity(i) {
+  const url = i.https_url || i.url;
+  return {
+    id: i.imageid, sol: Number(i.sol), utc: i.date_taken, camera: i.instrument, camera_name: cameraName(i.instrument),
+    thumb: url, img: url, full: url, link: i.link || "", caption: i.title || "",
+  };
+}
+async function fetchLive(rover) {
+  const out = [];
+  for (let p = 0; p < PAGES; p++) {
+    const url = rover === "perseverance" ? perseveranceUrl(p) : curiosityUrl(p);
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`NASA answered ${res.status} ${res.statusText}`);
+    const json = await res.json();
+    const items = rover === "perseverance" ? (json.images || []) : (json.items || []);
+    out.push(...items.map(rover === "perseverance" ? normPerseverance : normCuriosity));
+    if (items.length < PAGE_SIZE) break;
+  }
+  return out.filter(p => p.id && Number.isFinite(p.sol) && p.thumb);
+}
+
+// ---- State --------------------------------------------------------------
+const state = {
+  rover: "perseverance",
+  photos: { perseverance: null, curiosity: null },
+  source: { perseverance: null, curiosity: null },   // "live" | "snapshot"
+  fetchedAt: { perseverance: null, curiosity: null },
+  error: { perseverance: null, curiosity: null },
+  camera: null, sol: null, shown: GRID_STEP, loading: false,
+};
+try { const r = localStorage.getItem("rover"); if (r && ROVERS[r]) state.rover = r; } catch (e) {}
+
+if (SNAPSHOT && SNAPSHOT.rovers) {
+  for (const r of Object.keys(ROVERS)) {
+    if (Array.isArray(SNAPSHOT.rovers[r]) && SNAPSHOT.rovers[r].length) {
+      state.photos[r] = SNAPSHOT.rovers[r].map(p => ({ ...p, sol: Number(p.sol), camera_name: cameraName(p.camera) }));
+      state.source[r] = "snapshot";
+      state.fetchedAt[r] = SNAPSHOT.generated_at;
+    }
+  }
+}
+
+const $ = id => document.getElementById(id);
+const fmtInt = n => Number(n).toLocaleString("en-US");
+const fmtUtc = iso => { const d = new Date(iso); return isNaN(d) ? "—" : d.toISOString().slice(0, 16).replace("T", " "); };
+const ago = iso => {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (!isFinite(s)) return "";
+  if (s < 90) return "just now";
+  if (s < 5400) return `${Math.round(s / 60)} min ago`;
+  if (s < 172800) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} days ago`;
+};
+function svgEl(tag, attrs, text) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (text != null) el.textContent = text;
+  return el;
+}
+// Whole-number tick step so that 4 steps cover v
+function niceStep(v) {
+  const raw = Math.max(1, v / 4);
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const m of [1, 2, 5, 10]) if (m * p >= raw) return m * p;
+  return 10 * p;
+}
+
+// ---- Tooltip ------------------------------------------------------------
+const tip = $("tip");
+function showTip(evt, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const x = Math.min(evt.clientX + 12, window.innerWidth - tip.offsetWidth - 8);
+  const y = Math.max(evt.clientY - tip.offsetHeight - 10, 8);
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+
+// ---- Loading ------------------------------------------------------------
+async function refresh(rover = state.rover) {
+  if (state.loading) return;
+  state.loading = true;
+  $("refresh").disabled = true;
+  renderStatus();
+  try {
+    const photos = await fetchLive(rover);
+    if (!photos.length) throw new Error("NASA returned no photos");
+    state.photos[rover] = photos;
+    state.source[rover] = "live";
+    state.fetchedAt[rover] = new Date().toISOString();
+    state.error[rover] = null;
+  } catch (err) {
+    state.error[rover] = err && err.message ? err.message : String(err);
+  } finally {
+    state.loading = false;
+    $("refresh").disabled = false;
+    if (rover === state.rover) render();
+  }
+}
+
+let timer = null;
+function schedule() {
+  clearInterval(timer);
+  if ($("auto").checked) timer = setInterval(() => refresh(), AUTO_MS);
+}
+
+// ---- Rendering ----------------------------------------------------------
+function renderStatus() {
+  const r = state.rover, pill = $("pill"), text = $("status-text"), notice = $("notice");
+  const err = state.error[r], src = state.source[r];
+  notice.hidden = true; notice.className = "notice";
+  if (state.loading) {
+    pill.className = "pill loading"; pill.textContent = "Loading";
+    text.textContent = "Fetching the latest frames from NASA…";
+    return;
+  }
+  if (src === "live") {
+    pill.className = "pill live"; pill.textContent = "Live";
+    text.textContent = `Updated ${ago(state.fetchedAt[r])} from NASA's raw image feed.`;
+  } else if (src === "snapshot") {
+    pill.className = "pill snapshot"; pill.textContent = "Snapshot";
+    text.textContent = `Showing the notebook snapshot from ${fmtUtc(state.fetchedAt[r])} UTC.`;
+  } else {
+    pill.className = "pill error"; pill.textContent = "No data";
+    text.textContent = "No photos loaded yet.";
+  }
+  if (err) {
+    notice.hidden = false;
+    if (src) notice.innerHTML = `Live refresh failed (${escapeHtml(err)}). Your browser may block direct requests to NASA from this page. The data below comes from the last notebook run; re-run <code>part_3_mars_rover_photos.ipynb</code> to update it.`;
+    else { notice.classList.add("error"); notice.innerHTML = `Couldn't reach NASA (${escapeHtml(err)}). Run <code>part_3_mars_rover_photos.ipynb</code>, which fetches the photos in Python and writes <code>rover_dashboard.html</code> with the data built in.`; }
+  }
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+function filtered() {
+  const all = state.photos[state.rover] || [];
+  return all.filter(p => (state.camera == null || p.camera === state.camera) && (state.sol == null || p.sol === state.sol));
+}
+
+function render() {
+  const r = state.rover, meta = ROVERS[r], photos = state.photos[r] || [];
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.rover === r)));
+  $("rover-name").textContent = meta.name;
+  $("mission-line").textContent = `${meta.mission} · ${meta.site} · landed ${meta.landed}`;
+  renderStatus();
+
+  const latest = photos.reduce((a, p) => (p.sol > a ? p.sol : a), -Infinity);
+  const newest = photos.reduce((a, p) => (!a || p.utc > a ? p.utc : a), null);
+  const sols = new Set(photos.map(p => p.sol));
+  const cams = new Set(photos.map(p => p.camera));
+  const latestCount = photos.filter(p => p.sol === latest).length;
+  const hasData = photos.length > 0;
+  const days = Math.floor((Date.now() - new Date(meta.landed + "T00:00:00Z")) / 86400000);
+
+  $("h-sol").textContent = hasData ? `Sol ${fmtInt(latest)}` : "Sol —";
+  $("k-sol").textContent = hasData ? fmtInt(latest) : "—";
+  $("k-sol-s").textContent = `${fmtInt(days)} Earth days since landing`;
+  $("k-photos").textContent = hasData ? fmtInt(photos.length) : "—";
+  $("k-photos-s").textContent = hasData ? `across ${sols.size} sol${sols.size === 1 ? "" : "s"}, ${fmtInt(latestCount)} on the latest` : " ";
+  $("k-cams").textContent = hasData ? cams.size : "—";
+  $("k-cams-s").textContent = hasData ? `${cameraName(topBy(photos, "camera"))} busiest` : " ";
+  $("k-time").textContent = newest ? fmtUtc(newest).slice(11) : "—";
+  $("k-time-s").textContent = newest ? `${fmtUtc(newest).slice(0, 10)} · ${ago(newest)}` : " ";
+
+  if (state.camera && !cams.has(state.camera)) state.camera = null;
+  if (state.sol != null && !sols.has(state.sol)) state.sol = null;
+  renderSolChart(photos);
+  renderCamChart(photos);
+  renderChips(photos);
+  renderGrid();
+}
+function topBy(arr, key) {
+  const c = new Map(); arr.forEach(p => c.set(p[key], (c.get(p[key]) || 0) + 1));
+  return [...c.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+function countBy(arr, key) {
+  const c = new Map(); arr.forEach(p => c.set(p[key], (c.get(p[key]) || 0) + 1));
+  return c;
+}
+
+function renderSolChart(photos) {
+  const box = $("c-sol"); box.innerHTML = "";
+  const pool = photos.filter(p => state.camera == null || p.camera === state.camera);
+  const counts = [...countBy(pool, "sol").entries()].sort((a, b) => a[0] - b[0]).slice(-20);
+  if (!counts.length) { box.innerHTML = '<p class="empty">No photos to chart.</p>'; return; }
+  const W = 560, H = 220, m = { t: 10, r: 8, b: 26, l: 36 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const tick = niceStep(Math.max(...counts.map(c => c[1]))), max = tick * 4;
+  const step = iw / counts.length, bw = Math.max(4, Math.min(28, step - 2));
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Photos per sol" });
+  for (let i = 0; i <= 4; i++) {
+    const v = tick * i, y = m.t + ih - (v / max) * ih;
+    svg.append(svgEl("line", { class: i ? "gridline" : "base", x1: m.l, x2: W - m.r, y1: y, y2: y }));
+    svg.append(svgEl("text", { class: "axis", x: m.l - 6, y: y + 4, "text-anchor": "end" }, fmtInt(v)));
+  }
+  const every = Math.ceil(counts.length / 8);
+  counts.forEach(([sol, n], i) => {
+    const cx = m.l + step * i + step / 2, h = Math.max(2, (n / max) * ih);
+    const x = cx - bw / 2, y = m.t + ih - h, r = Math.min(4, bw / 2);
+    const d = `M${x},${m.t + ih}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${m.t + ih}Z`;
+    const cls = "bar" + (state.sol != null && state.sol !== sol ? " dim" : "");
+    svg.append(svgEl("path", { class: cls, d }));
+    if (i % every === 0 || i === counts.length - 1)
+      svg.append(svgEl("text", { class: "axis", x: cx, y: H - 8, "text-anchor": "middle" }, String(sol)));
+    const hit = svgEl("rect", { class: "hit", x: m.l + step * i, y: m.t, width: step, height: ih, tabindex: 0,
+      role: "button", "aria-label": `Sol ${sol}: ${n} photos` });
+    hit.addEventListener("mousemove", e => showTip(e, `Sol <b>${sol}</b> · ${fmtInt(n)} photo${n === 1 ? "" : "s"}`));
+    hit.addEventListener("mouseleave", hideTip);
+    const pick = () => { state.sol = state.sol === sol ? null : sol; state.shown = GRID_STEP; hideTip(); render(); };
+    hit.addEventListener("click", pick);
+    hit.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+    svg.append(hit);
+  });
+  svg.append(svgEl("text", { class: "axis", x: m.l, y: H - 8, "text-anchor": "start", dx: -34 }, "sol"));
+  box.append(svg);
+}
+
+function renderCamChart(photos) {
+  const box = $("c-cam"); box.innerHTML = "";
+  const pool = photos.filter(p => state.sol == null || p.sol === state.sol);
+  let rows = [...countBy(pool, "camera").entries()].sort((a, b) => b[1] - a[1]);
+  if (rows.length > 8) {
+    const rest = rows.slice(7).reduce((s, r) => s + r[1], 0);
+    rows = rows.slice(0, 7).concat([["__other", rest]]);
+  }
+  if (!rows.length) { box.innerHTML = '<p class="empty">No photos to chart.</p>'; return; }
+  const W = 400, rowH = 24, m = { t: 4, r: 44, l: 136 }, H = m.t + rows.length * rowH + 4;
+  const max = Math.max(...rows.map(r => r[1]));
+  const iw = W - m.l - m.r;
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Photos by camera" });
+  rows.forEach(([cam, n], i) => {
+    const y = m.t + i * rowH, w = Math.max(2, (n / max) * iw), bh = 14, by = y + (rowH - bh) / 2;
+    const label = cam === "__other" ? "Other cameras" : cameraName(cam);
+    const r = Math.min(4, w / 2);
+    const x0 = m.l, x1 = m.l + w;
+    const d = `M${x0},${by}H${x1 - r}Q${x1},${by} ${x1},${by + r}V${by + bh - r}Q${x1},${by + bh} ${x1 - r},${by + bh}H${x0}Z`;
+    const cls = "bar" + (state.camera != null && state.camera !== cam ? " dim" : "");
+    svg.append(svgEl("text", { class: "lbl", x: m.l - 8, y: y + rowH / 2 + 4, "text-anchor": "end" },
+      label.length > 20 ? label.slice(0, 19) + "…" : label));
+    svg.append(svgEl("path", { class: cls, d }));
+    svg.append(svgEl("text", { class: "val", x: x1 + 6, y: y + rowH / 2 + 4 }, fmtInt(n)));
+    if (cam !== "__other") {
+      const hit = svgEl("rect", { class: "hit", x: 0, y, width: W, height: rowH, tabindex: 0, role: "button",
+        "aria-label": `${label}: ${n} photos` });
+      hit.addEventListener("mousemove", e => showTip(e, `${escapeHtml(label)} · <b>${fmtInt(n)}</b> · ${escapeHtml(cam)}`));
+      hit.addEventListener("mouseleave", hideTip);
+      const pick = () => { state.camera = state.camera === cam ? null : cam; state.shown = GRID_STEP; hideTip(); render(); };
+      hit.addEventListener("click", pick);
+      hit.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+      svg.append(hit);
+    }
+  });
+  box.append(svg);
+}
+
+function renderChips(photos) {
+  const box = $("chips"); box.innerHTML = "";
+  const pool = photos.filter(p => state.sol == null || p.sol === state.sol);
+  const rows = [...countBy(pool, "camera").entries()].sort((a, b) => b[1] - a[1]);
+  const mk = (label, n, cam) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.setAttribute("aria-pressed", String(state.camera === cam));
+    b.innerHTML = `${escapeHtml(label)} <span class="n">${fmtInt(n)}</span>`;
+    b.addEventListener("click", () => { state.camera = cam; state.shown = GRID_STEP; render(); });
+    box.append(b);
+  };
+  mk("All cameras", pool.length, null);
+  rows.forEach(([cam, n]) => mk(cameraName(cam), n, cam));
+  if (state.sol != null) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.setAttribute("aria-pressed", "true");
+    b.textContent = `Sol ${state.sol} ✕`;
+    b.setAttribute("aria-label", `Clear sol ${state.sol} filter`);
+    b.addEventListener("click", () => { state.sol = null; render(); });
+    box.prepend(b);
+  }
+}
+
+function renderGrid() {
+  const grid = $("grid"); grid.innerHTML = "";
+  const list = filtered().slice().sort((a, b) => b.sol - a.sol || String(b.utc).localeCompare(String(a.utc)));
+  const title = [state.camera ? cameraName(state.camera) : "Latest frames", state.sol != null ? `sol ${state.sol}` : null].filter(Boolean).join(" · ");
+  $("g-title").textContent = title;
+  $("g-count").textContent = list.length ? `${fmtInt(Math.min(state.shown, list.length))} of ${fmtInt(list.length)} shown` : "";
+  if (!list.length) { grid.innerHTML = '<p class="empty">No photos match these filters.</p>'; $("more").hidden = true; return; }
+  const frag = document.createDocumentFragment();
+  list.slice(0, state.shown).forEach(p => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "card";
+    b.setAttribute("aria-label", `${p.camera_name}, sol ${p.sol}`);
+    b.innerHTML = `<div class="ph"><img loading="lazy" decoding="async" alt="" src="${escapeHtml(p.thumb)}"></div>
+      <div class="meta"><span class="cam">${escapeHtml(p.camera_name)}</span><span class="when">Sol ${p.sol} · ${fmtUtc(p.utc).slice(5)}</span></div>`;
+    b.addEventListener("click", () => openPhoto(p));
+    frag.append(b);
+  });
+  grid.append(frag);
+  $("more").hidden = list.length <= state.shown;
+}
+
+function openPhoto(p) {
+  $("lb-img").src = p.img; $("lb-img").alt = `${p.camera_name} frame from sol ${p.sol}`;
+  const rows = [["Rover", ROVERS[state.rover].name], ["Sol", p.sol], ["Taken (UTC)", fmtUtc(p.utc)], ["Camera", p.camera_name],
+    ["Instrument", p.camera], ["Image ID", p.id]];
+  $("lb-meta").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${escapeHtml(v)}</dd>`).join("");
+  $("lb-full").href = p.full;
+  $("lb-link").hidden = !p.link; if (p.link) $("lb-link").href = p.link;
+  const dlg = $("lightbox");
+  if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+}
+
+// ---- Wiring -------------------------------------------------------------
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  if (state.rover === b.dataset.rover) return;
+  state.rover = b.dataset.rover; state.camera = null; state.sol = null; state.shown = GRID_STEP;
+  try { localStorage.setItem("rover", state.rover); } catch (e) {}
+  render();
+  if (state.source[state.rover] !== "live") refresh();
+}));
+$("refresh").addEventListener("click", () => refresh());
+$("auto").addEventListener("change", schedule);
+$("more").addEventListener("click", () => { state.shown += GRID_STEP; renderGrid(); });
+$("lb-close").addEventListener("click", () => $("lightbox").close());
+$("lightbox").addEventListener("click", e => { if (e.target === $("lightbox")) $("lightbox").close(); });
+
+render();
+refresh();
+schedule();
+</script>
+</body>
+</html>
